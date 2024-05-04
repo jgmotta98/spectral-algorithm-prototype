@@ -1,16 +1,9 @@
-from reportlab.lib.pagesizes import landscape
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import landscape, letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageTemplate, Frame, Paragraph
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from io import BytesIO
 import matplotlib.pyplot as plt
 from matplotlib.patheffects import withStroke
-from PyPDF2 import PdfMerger
+from matplotlib.figure import Figure
 import os
-import re
+from fpdf import FPDF
+
 
 TEMP_PATH = './files/temp'
 
@@ -58,117 +51,34 @@ def create_graph(components_data_filter, input_list_dict, spectral_list, compone
         ax.legend()
         plt.xlim((4000, 400))
         plt.ylim((0, 100))
-        figure = plt.gcf()
-        figure.set_size_inches(32, 18)
 
-        create_pdf_page(os.path.join(TEMP_PATH, f"{k}_img.pdf"), fig)
-        teste(os.path.join(TEMP_PATH, f"{k}_table.pdf"))
-        merge_temp_pdfs(TEMP_PATH)
-    merge_pdfs(TEMP_PATH, output, components) 
+        create_temp_png(os.path.join(TEMP_PATH, f"{k}.png"), fig)
+
+    create_pdf_page(TEMP_PATH, output, components)
 
 
-def create_pdf_page(output_pdf, fig):
-    buffer = BytesIO()
-
-    c = canvas.Canvas(buffer, pagesize=landscape(letter))
-
-    tmp_file = os.path.join(TEMP_PATH, 'temp_plot.png')
-    fig.savefig(tmp_file, dpi=150)
+def create_temp_png(output_path: str, fig: Figure):
+    tmp_file = os.path.join(output_path)
+    fig.savefig(tmp_file)
     plt.close(fig)
 
-    page_width, page_height = landscape(letter)
-    graph_width, graph_height = 800, 600
-    x_offset = (page_width - graph_width) / 2
-    y_offset = (page_height - graph_height) / 2
 
-    c.drawInlineImage(tmp_file, x_offset, y_offset, width=graph_width, height=graph_height)
-
-    c.showPage()
-    c.save()
-
-    with open(output_pdf, 'ab') as f:
-        f.write(buffer.getvalue())
-
-    buffer.close()
-    os.remove(tmp_file)
+def get_temp_imgs(imgs_path: str):
+    return [os.path.join(imgs_path, img_name) for img_name in os.listdir(imgs_path) if img_name.endswith('.png')]
 
 
-def get_pdf_temp(temp_path: str) -> list[str]:
-    return [os.path.join(temp_path, files) for files in os.listdir(temp_path) if files.endswith('.pdf')]
+def create_pdf_page(imgs_path: str, output_pdf: str, compound_list: list[str]):
+    temp_img_list = get_temp_imgs(imgs_path)
 
+    file_dict = {os.path.basename(filename).split('.')[0]: filename for filename in temp_img_list}
 
-def get_img_table_pdf(temp_path: list[str]) -> list[str]:
-    return [files for files in temp_path if files.split("_")[-1] in ['img.pdf', 'table.pdf']]
-
-
-def merge_pdfs(input_path, output_pdf, compound_list):
-    temp_pdf_list = get_pdf_temp(input_path)
-    merger = PdfMerger()
-
-    file_dict = {os.path.basename(filename).split('.')[0]: filename for filename in temp_pdf_list}
-
-    temp_pdf_list = [file_dict[key] for key in compound_list]
-
-    for pdf_file in  temp_pdf_list:
-        merger.append(pdf_file)
-
-    merger.write(output_pdf)
-
-    merger.close()
-    [os.remove(pdf_file) for pdf_file in temp_pdf_list]
-
-
-def merge_temp_pdfs(input_path):
-    temp_pdf_list = get_pdf_temp(input_path)
-    temp_pdf_list = get_img_table_pdf(temp_pdf_list)
-    pattern = re.compile(r'(_img|_table)')
-    file_name = os.path.basename(re.sub(pattern, '', temp_pdf_list[0]))
-
-    merger = PdfMerger()
+    temp_img_list = [file_dict[key] for key in compound_list]
     
-    for pdf_file in  temp_pdf_list:
-        merger.append(pdf_file)
+    pdf = FPDF(orientation="landscape")
+    
+    for tmp_file in temp_img_list:
+        pdf.add_page()
+        pdf.image(tmp_file)
+    pdf.output(output_pdf)
 
-    merger.write(os.path.join(input_path, file_name))
-
-    merger.close()
-    [os.remove(pdf_file) for pdf_file in temp_pdf_list]
-
-
-def teste(file_path: str) -> None:
-    doc = SimpleDocTemplate(file_path, pagesize=landscape(letter))
-
-    data = [
-        ["Name", "Age", "Country"],
-        ["John Doe", "30", "USA"],
-        ["Jane Smith", "25", "UK"],
-        ["Ahmed Khan", "35", "India"],
-    ]
-
-    table = Table(data)
-
-    style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey), 
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke), 
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
-    ])
-    table.setStyle(style)
-
-    footer_text = "This is a footer note."
-
-    def add_footer(canvas, doc):
-        canvas.saveState()
-        canvas.setFont('Helvetica', 9)
-        canvas.drawString(30, 20, footer_text)
-        canvas.restoreState()
-
-    styles = getSampleStyleSheet()
-    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
-    footer_frame = Frame(doc.leftMargin, doc.bottomMargin - 50, doc.width, 50, id='footer')
-    footer_template = PageTemplate(id='footer', frames=[frame, footer_frame], onPage=add_footer)
-    doc.addPageTemplates([footer_template])
-
-    elements = []
-    elements.append(table)
-    doc.build(elements)
+    [os.remove(tmp_file) for tmp_file in temp_img_list]
