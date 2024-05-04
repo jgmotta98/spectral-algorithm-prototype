@@ -95,9 +95,8 @@ def local_algorithm(spectral_filtered_list: list[pd.DataFrame], analysis_compoun
     similarity_scores_y = {}
 
     input_list_dict = {}
-    
+    start_time = time.perf_counter()
     for component_name, component_df in components_data.items():
-        start_time = time.perf_counter()
         complete_df = compare_and_filter(input_spectrum, component_df)
         
         input_df = complete_df[['input_x', 'height_input', 'input_y']]
@@ -130,8 +129,7 @@ def local_algorithm(spectral_filtered_list: list[pd.DataFrame], analysis_compoun
 
         similarity_percentage_y = similarity_y * 100
         similarity_scores_y[component_name] = similarity_percentage_y
-        print(f'Execution time: {time.perf_counter() - start_time} seconds.')
-        input()
+    print(f'Execution time: {time.perf_counter() - start_time} seconds.')
 
     closest_matches_x = sorted(similarity_scores_x.items(), key=lambda x: x[1], reverse=True)
     closest_matches_height = sorted(similarity_scores_height.items(), key=lambda x: x[1], reverse=True)
@@ -145,3 +143,5 @@ def local_algorithm(spectral_filtered_list: list[pd.DataFrame], analysis_compoun
                     if component == component_height and component == component_y:
                         components[component] = ((similarity_percentage + similarity_percentage_height + similarity_percentage_y)/3)
                         print(f"{component}: Similarity by X = {similarity_percentage:.2f}% ///// Similarity by Height = {similarity_percentage_height:.2f}% //// Similarity by Intensity = {similarity_percentage_y:.2f}%")
+
+    return components_data_filter, input_list_dict, components
