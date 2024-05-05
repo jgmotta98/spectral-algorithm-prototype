@@ -6,10 +6,10 @@ from generate_report import create_graph
 
 
 SPECTRAL_DB_PATH = r'D:\Downloads\Material Faculdade\Material TCC\spectral-algorithm-prototype\files\database\spectra_data.db'
-BAND_DISTANCE_CHECK = 25
+BAND_DISTANCE_CHECK = 50
 CPU_CORES = cpu_count()
-OUTPUT_PDF = r'D:\Downloads\Material Faculdade\Material TCC\spectral-algorithm-prototype\files\reports\output_horizontal_centralized.pdf'
-ANALYSIS_COMPOUND = 'trans-1,3-pentadiene'
+OUTPUT_PDF = r'D:\Downloads\Material Faculdade\Material TCC\spectral-algorithm-prototype\files\reports\report_example.pdf'
+ANALYSIS_COMPOUND = '2-pentene'
 
 
 def main() -> None:

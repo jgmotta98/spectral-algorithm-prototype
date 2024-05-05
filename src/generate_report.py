@@ -3,6 +3,7 @@ from matplotlib.patheffects import withStroke
 from matplotlib.figure import Figure
 import os
 from fpdf import FPDF
+import datetime
 
 
 TEMP_PATH = './files/temp'
@@ -94,8 +95,11 @@ def footer(pdf, tmp_file):
     pdf.cell(page_width / 3, 10, f'{pdf.page_no()}', 0, 0, 'R')
 
 
-def create_table(pdf: FPDF, table_data: list[tuple[str, str, str, str, str]], tmp_file: str) -> None:
-    table_header = [('Id', 'Database\nWavelength (cm-¹)', 'Database\nIntensity', 'Analyzed\nWavelength (cm-¹)', 'Analyzed\nIntensity')]
+def create_table(pdf: FPDF, table_data: list[tuple[str, str, str, str, str]], tmp_file: str, analyzed_compound: str) -> None:
+    table_header = [('Id', f'{os.path.basename(tmp_file).split(".")[0].capitalize()}\nWavelength (cm-¹)', 
+                     f'{os.path.basename(tmp_file).split(".")[0].capitalize()}\nIntensity', 
+                     f'{analyzed_compound}\nWavelength (cm-¹)', 
+                     f'{analyzed_compound}\nIntensity')]
     table_data = table_header + table_data
 
     pdf.add_page()
@@ -128,17 +132,21 @@ def create_details_page(pdf, analyzed_comp, band_check, compound_list, percentag
     pdf.add_page()
     pdf.set_font('Times', 'B', 24)
     pdf.write(2, 'Information Details')
+    pdf.ln(10)
+    pdf.set_font('Times', 'B', 20)
+    now = datetime.datetime.now()
+    pdf.write(2, f'{now.day}/{now.month}/{now.year} - {now.time().strftime("%H:%M:%S")}')
     pdf.ln(40)
 
-    pdf.set_font('Times', '', 14)
-    pdf.write(2, f'Analyzed compound name: {analyzed_comp}')
+    pdf.set_font('Times', '', 18)
+    pdf.write(2, f'Analyzed Compound Name: {analyzed_comp}')
     pdf.ln(10)
 
-    pdf.write(2, f'Analyzed range: {band_check} cm-¹')
+    pdf.write(2, f'Analyzed Range: {band_check} cm-¹')
     pdf.ln(25)
 
-    table_list = [(f'{comp_idx + 1}', comp, f'{perc:.2f}') for comp_idx, (comp, perc) in enumerate(zip(compound_list, percentages))]
-    table_list = [('Id', 'Database Compound (Most Similar to Least Similar)', 'Similarity Percentage (%)')] + table_list
+    table_list = [(f'{comp_idx + 1}', comp, f'{perc/100:.2f}') for comp_idx, (comp, perc) in enumerate(zip(compound_list, percentages))]
+    table_list = [('Id', 'Database Compound', 'Similarity Factor')] + table_list
 
     create_similarity_table(pdf, table_list)
 
@@ -167,7 +175,7 @@ def create_pdf_page(imgs_path: str, output_pdf: str,
         create_title(pdf, file_idx + 1, os.path.basename(tmp_file).split('.')[0])
         pdf.footer = lambda: footer(pdf, tmp_file)
         pdf.image(tmp_file, w=280, h=170)
-        create_table(pdf, table_dict[os.path.basename(tmp_file).split('.')[0]], tmp_file)
+        create_table(pdf, table_dict[os.path.basename(tmp_file).split('.')[0]], tmp_file, analyzed_comp_name)
     pdf.output(output_pdf)
 
     [os.remove(tmp_file) for tmp_file in temp_img_list]
