@@ -137,7 +137,7 @@ def local_algorithm(spectral_filtered_list: list[pd.DataFrame], analysis_compoun
     print('Component real name: ', analysis_compound)
     components = {}
     for index, (component, similarity_percentage) in enumerate(closest_matches_x):
-        if index <= 5:
+        if index <= 4:
             for (component_height, similarity_percentage_height) in closest_matches_height:
                 for (component_y, similarity_percentage_y) in closest_matches_y:
                     if component == component_height and component == component_y:
