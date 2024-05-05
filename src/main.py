@@ -15,7 +15,7 @@ ANALYSIS_COMPOUND = 'trans-1,3-pentadiene'
 def main() -> None:
     spectral_filtered_list, spectral_list = get_spectra_filtered_list(SPECTRAL_DB_PATH, BAND_DISTANCE_CHECK, cpu_cores=CPU_CORES)
     components_data_filter, input_list_dict, components_result = local_algorithm(spectral_filtered_list, ANALYSIS_COMPOUND)
-    create_graph(components_data_filter, input_list_dict, spectral_list, components_result, ANALYSIS_COMPOUND, OUTPUT_PDF)
+    create_graph(components_data_filter, input_list_dict, spectral_list, components_result, ANALYSIS_COMPOUND, OUTPUT_PDF, BAND_DISTANCE_CHECK)
 
 
 if __name__ == "__main__":

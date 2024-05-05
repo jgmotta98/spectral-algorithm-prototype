@@ -1,29 +1,26 @@
-from reportlab.lib.pagesizes import landscape
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import landscape, letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageTemplate, Frame, Paragraph
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from io import BytesIO
 import matplotlib.pyplot as plt
 from matplotlib.patheffects import withStroke
-from PyPDF2 import PdfMerger
+from matplotlib.figure import Figure
 import os
-import re
+from fpdf import FPDF
+
 
 TEMP_PATH = './files/temp'
 
 
-def create_graph(components_data_filter, input_list_dict, spectral_list, components, compound, output):
+def create_graph(components_data_filter, input_list_dict, spectral_list, components, compound, output, band_check):
     dict_teste = {v.iloc[0, 0]: v.drop('name', axis=1) for v in spectral_list}
 
     sorted_data = dict(sorted(components.items(), key=lambda item: item[1], reverse=True))
+    percentages = list(sorted_data.values())
     components = list(sorted_data.keys())
 
     component_dict = {comp: components_data_filter[comp].loc[:, ('x', 'y')] for comp in (components)}
 
+    table_dict: dict[str, list[tuple[str, str, str, str, str]]] = {}
+    
     for k, v in component_dict.items():
+        table_list: list[tuple[str, str, str, str, str]] = []
         fig, ax = plt.subplots()
         
         input_list = [input_list_dict[k]['x'].tolist(), input_list_dict[k]['y'].tolist()]
@@ -39,136 +36,138 @@ def create_graph(components_data_filter, input_list_dict, spectral_list, compone
 
         number_range = len(database_list[0])
 
-        ax.scatter(database_list[0], database_list[1], label='Database Points', zorder=2, color='blue')
-        ax.scatter(input_list[0], input_list[1], label='Analysed File Points', zorder=2, color='orange')
+        ax.scatter(database_list[0], database_list[1], label=f'{k.capitalize()} Points', zorder=2, color='blue')
+        ax.scatter(input_list[0], input_list[1], label=f'{compound.capitalize()} Points', zorder=2, color='orange')
 
         for i in range(number_range, 0, -1):
-            text = ax.annotate(i, (database_list[0][number_range - i], database_list[1][number_range - i]), zorder=4, color='blue', fontsize=10, ha='left', va='center')
+            table_list.append((str(i), f'{database_list[0][number_range - i]:.2f}', f'{database_list[1][number_range - i]:.2f}', 
+                             f'{input_list[0][number_range - i]:.2f}', f'{input_list[1][number_range - i]:.2f}'))
+            
+            text = ax.annotate(i, (database_list[0][number_range - i], database_list[1][number_range - i]), zorder=4, color='blue', fontsize=10, ha='left', va='top')
             text.set_path_effects([withStroke(linewidth=3, foreground='white')])
 
-            text = ax.annotate(i, (input_list[0][number_range - i], input_list[1][number_range - i]), zorder=4, color='orange', fontsize=10, ha='left', va='center')
+            text = ax.annotate(i, (input_list[0][number_range - i], input_list[1][number_range - i]), zorder=4, color='orange', fontsize=10, ha='left', va='bottom')
             text.set_path_effects([withStroke(linewidth=3, foreground='white')])
 
         for i in range(len(database_list[0])):
             ax.plot([database_list[0][i], input_list[0][i]], [database_list[1][i], input_list[1][i]], linestyle='--', color='purple', alpha=0.5, zorder=3)
 
-        ax.plot(dict_teste[compound]['x'], dict_teste[compound]['y'], color='black', zorder=1)
-        ax.plot(dict_teste[k]['x'], dict_teste[k]['y'], color='red', zorder=1, alpha =0.5)
-        plt.title(k)
+        ax.plot(dict_teste[compound]['x'], dict_teste[compound]['y'], label=f'{k.capitalize()} Spectra', color='black', zorder=1)
+        ax.plot(dict_teste[k]['x'], dict_teste[k]['y'], color='red', label=f'{compound.capitalize()} Spectra', zorder=1, alpha =0.5)
         ax.legend()
         plt.xlim((4000, 400))
         plt.ylim((0, 100))
+        plt.xlabel('Wavelength (cm⁻¹)')
+        plt.ylabel('Intensity')
         figure = plt.gcf()
-        figure.set_size_inches(32, 18)
+        figure.set_size_inches(9.5*2.2, 5.5*2.2)
 
-        create_pdf_page(os.path.join(TEMP_PATH, f"{k}_img.pdf"), fig)
-        teste(os.path.join(TEMP_PATH, f"{k}_table.pdf"))
-        merge_temp_pdfs(TEMP_PATH)
-    merge_pdfs(TEMP_PATH, output, components) 
+        create_temp_png(os.path.join(TEMP_PATH, f"{k}.png"), fig)
+        table_list = sorted(table_list, key=lambda x: float(x[0]))
+        table_dict[k] = table_list
+
+    create_pdf_page(TEMP_PATH, output, components, table_dict, compound, band_check, percentages)
 
 
-def create_pdf_page(output_pdf, fig):
-    buffer = BytesIO()
-
-    c = canvas.Canvas(buffer, pagesize=landscape(letter))
-
-    tmp_file = os.path.join(TEMP_PATH, 'temp_plot.png')
-    fig.savefig(tmp_file, dpi=150)
+def create_temp_png(output_path: str, fig: Figure) -> None:
+    tmp_file = os.path.join(output_path)
+    fig.savefig(tmp_file, bbox_inches='tight', dpi=300)
     plt.close(fig)
 
-    page_width, page_height = landscape(letter)
-    graph_width, graph_height = 800, 600
-    x_offset = (page_width - graph_width) / 2
-    y_offset = (page_height - graph_height) / 2
 
-    c.drawInlineImage(tmp_file, x_offset, y_offset, width=graph_width, height=graph_height)
-
-    c.showPage()
-    c.save()
-
-    with open(output_pdf, 'ab') as f:
-        f.write(buffer.getvalue())
-
-    buffer.close()
-    os.remove(tmp_file)
+def get_temp_imgs(imgs_path: str) -> list[str]:
+    return [os.path.join(imgs_path, img_name) for img_name in os.listdir(imgs_path) if img_name.endswith('.png')]
 
 
-def get_pdf_temp(temp_path: str) -> list[str]:
-    return [os.path.join(temp_path, files) for files in os.listdir(temp_path) if files.endswith('.pdf')]
+def footer(pdf, tmp_file):
+    pdf.set_y(-15)
+    pdf.set_font('Times', '', 14)
+    page_width = pdf.w - 2 * pdf.l_margin
+
+    img_path = r'D:\Downloads\Material Faculdade\Material TCC\spectral-algorithm-prototype\files\imgs\spectral-nexus-icon-thicker-bw.png'
+    pdf.image(img_path, x=pdf.l_margin, y=pdf.get_y(), w=40, h=6)
+
+    pdf.cell(page_width / 3, 10, '', 0, 0, 'L')
+
+    pdf.cell(page_width / 3, 10, f'{os.path.basename(tmp_file).split(".")[0].capitalize()}', 0, 0, 'C')
+
+    pdf.cell(page_width / 3, 10, f'{pdf.page_no()}', 0, 0, 'R')
 
 
-def get_img_table_pdf(temp_path: list[str]) -> list[str]:
-    return [files for files in temp_path if files.split("_")[-1] in ['img.pdf', 'table.pdf']]
+def create_table(pdf: FPDF, table_data: list[tuple[str, str, str, str, str]], tmp_file: str) -> None:
+    table_header = [('Id', 'Database\nWavelength (cm-¹)', 'Database\nIntensity', 'Analyzed\nWavelength (cm-¹)', 'Analyzed\nIntensity')]
+    table_data = table_header + table_data
+
+    pdf.add_page()
+    pdf.set_font("Times", size=12)
+    with pdf.table(text_align="CENTER", borders_layout="MINIMAL") as table:
+        for data_row in table_data:
+            row = table.row()
+            for datum in data_row:
+                row.cell(datum)
+
+    pdf.footer = lambda: footer(pdf, tmp_file)
 
 
-def merge_pdfs(input_path, output_pdf, compound_list):
-    temp_pdf_list = get_pdf_temp(input_path)
-    merger = PdfMerger()
-
-    file_dict = {os.path.basename(filename).split('.')[0]: filename for filename in temp_pdf_list}
-
-    temp_pdf_list = [file_dict[key] for key in compound_list]
-
-    for pdf_file in  temp_pdf_list:
-        merger.append(pdf_file)
-
-    merger.write(output_pdf)
-
-    merger.close()
-    [os.remove(pdf_file) for pdf_file in temp_pdf_list]
+def create_title(pdf, title_idx, title_name):
+    pdf.set_font('Times', 'B', 24)
+    pdf.write(2, f'{title_idx}. {title_name.capitalize()}')
+    pdf.ln(10)
 
 
-def merge_temp_pdfs(input_path):
-    temp_pdf_list = get_pdf_temp(input_path)
-    temp_pdf_list = get_img_table_pdf(temp_pdf_list)
-    pattern = re.compile(r'(_img|_table)')
-    file_name = os.path.basename(re.sub(pattern, '', temp_pdf_list[0]))
+def create_similarity_table(pdf, table_data):
+    pdf.set_font("Times", size=12)
+    with pdf.table(text_align="CENTER", borders_layout="MINIMAL") as table:
+        for data_row in table_data:
+            row = table.row()
+            for datum in data_row:
+                row.cell(datum)
 
-    merger = PdfMerger()
+
+def create_details_page(pdf, analyzed_comp, band_check, compound_list, percentages):
+    pdf.add_page()
+    pdf.set_font('Times', 'B', 24)
+    pdf.write(2, 'Information Details')
+    pdf.ln(40)
+
+    pdf.set_font('Times', '', 14)
+    pdf.write(2, f'Analyzed compound name: {analyzed_comp}')
+    pdf.ln(10)
+
+    pdf.write(2, f'Analyzed range: {band_check} cm-¹')
+    pdf.ln(25)
+
+    table_list = [(f'{comp_idx + 1}', comp, f'{perc:.2f}') for comp_idx, (comp, perc) in enumerate(zip(compound_list, percentages))]
+    table_list = [('Id', 'Database Compound (Most Similar to Least Similar)', 'Similarity Percentage (%)')] + table_list
+
+    create_similarity_table(pdf, table_list)
+
+    pdf.footer = lambda: footer(pdf, '')
+
+
+def create_pdf_page(imgs_path: str, output_pdf: str, 
+                    compound_list: list[str], table_dict: dict[str, list[tuple[str, str, str, str, str]]],
+                    analyzed_comp_name: str, band_check: int, percentages: list[str]) -> None:
+
+    temp_img_list = get_temp_imgs(imgs_path)
+
+    file_dict = {os.path.basename(filename).split('.')[0]: filename for filename in temp_img_list}
+
+    temp_img_list = [file_dict[key] for key in compound_list]
     
-    for pdf_file in  temp_pdf_list:
-        merger.append(pdf_file)
+    pdf = FPDF(orientation="landscape")
 
-    merger.write(os.path.join(input_path, file_name))
+    background_image_path = r'D:\Downloads\Material Faculdade\Material TCC\spectral-algorithm-prototype\files\imgs\background-1-test.png'
+    pdf.set_page_background(background_image_path)
 
-    merger.close()
-    [os.remove(pdf_file) for pdf_file in temp_pdf_list]
+    create_details_page(pdf, analyzed_comp_name, band_check, compound_list, percentages)
+    
+    for file_idx, tmp_file in enumerate(temp_img_list):
+        pdf.add_page()
+        create_title(pdf, file_idx + 1, os.path.basename(tmp_file).split('.')[0])
+        pdf.footer = lambda: footer(pdf, tmp_file)
+        pdf.image(tmp_file, w=280, h=170)
+        create_table(pdf, table_dict[os.path.basename(tmp_file).split('.')[0]], tmp_file)
+    pdf.output(output_pdf)
 
-
-def teste(file_path: str) -> None:
-    doc = SimpleDocTemplate(file_path, pagesize=landscape(letter))
-
-    data = [
-        ["Name", "Age", "Country"],
-        ["John Doe", "30", "USA"],
-        ["Jane Smith", "25", "UK"],
-        ["Ahmed Khan", "35", "India"],
-    ]
-
-    table = Table(data)
-
-    style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey), 
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke), 
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
-    ])
-    table.setStyle(style)
-
-    footer_text = "This is a footer note."
-
-    def add_footer(canvas, doc):
-        canvas.saveState()
-        canvas.setFont('Helvetica', 9)
-        canvas.drawString(30, 20, footer_text)
-        canvas.restoreState()
-
-    styles = getSampleStyleSheet()
-    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
-    footer_frame = Frame(doc.leftMargin, doc.bottomMargin - 50, doc.width, 50, id='footer')
-    footer_template = PageTemplate(id='footer', frames=[frame, footer_frame], onPage=add_footer)
-    doc.addPageTemplates([footer_template])
-
-    elements = []
-    elements.append(table)
-    doc.build(elements)
+    [os.remove(tmp_file) for tmp_file in temp_img_list]
