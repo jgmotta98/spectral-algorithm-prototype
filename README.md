@@ -8,4 +8,4 @@
 
 # How to use
 
-Use the database returned from the [Spectra Scraper](https://github.com/jgmotta98/spectra-scraper) to feed the database. Use a `*.csv` file to input FT-IR spectral data.
+Use the database returned from the [Spectra Scraper](https://github.com/jgmotta98/spectra-scraper) to feed the algorithm. Use a `*.csv` file to input the FT-IR spectral data.
