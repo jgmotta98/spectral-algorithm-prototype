@@ -213,9 +213,10 @@ def get_spectra_filtered_list(db_path: str, band_distance_check: int, input_df: 
     input_df[1].insert(0, 'name', input_df[0])
     input_df = input_df[1]
     
-    input_df['y'] = (input_df['y'] * -1) + 100
+    input_df['y'] = 2 - np.log10(input_df['y'])
     c1=np.array(input_df['y'].tolist())-airPLS(np.array(input_df['y'].tolist())) # adicionar a possibilidade do usuario de alterar a porder!
-    c1 = (c1 * -1) + 100
+    
+    c1 = 10**(-c1) * 100
     input_df['y'] = c1.tolist()
 
     input_df = round_and_filter_pre(input_df)
