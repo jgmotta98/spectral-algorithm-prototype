@@ -9,8 +9,9 @@ import datetime
 TEMP_PATH = './files/temp'
 
 
-def create_graph(components_data_filter, input_list_dict, spectral_list, components, compound, output, band_check):
+def create_graph(components_data_filter, input_list_dict, spectral_list, spectra_input_list, components, compound, output, band_check):
     dict_teste = {v.iloc[0, 0]: v.drop('name', axis=1) for v in spectral_list}
+    dict_input = {compound: spectra_input_list.drop('name', axis=1)}
 
     sorted_data = dict(sorted(components.items(), key=lambda item: item[1], reverse=True))
     percentages = list(sorted_data.values())
@@ -53,8 +54,8 @@ def create_graph(components_data_filter, input_list_dict, spectral_list, compone
         for i in range(len(database_list[0])):
             ax.plot([database_list[0][i], input_list[0][i]], [database_list[1][i], input_list[1][i]], linestyle='--', color='purple', alpha=0.5, zorder=3)
 
-        ax.plot(dict_teste[compound]['x'], dict_teste[compound]['y'], label=f'{k.capitalize()} Spectra', color='black', zorder=1)
-        ax.plot(dict_teste[k]['x'], dict_teste[k]['y'], color='red', label=f'{compound.capitalize()} Spectra', zorder=1, alpha =0.5)
+        ax.plot(dict_input[compound]['x'], dict_input[compound]['y'], label=f'{compound.capitalize()} Spectra', color='black', zorder=1)
+        ax.plot(dict_teste[k]['x'], dict_teste[k]['y'], color='red', label=f'{k.capitalize()} Spectra', zorder=1, alpha =0.5)
         ax.legend()
         plt.xlim((4000, 400))
         plt.ylim((0, 100))

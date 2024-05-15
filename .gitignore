@@ -1,4 +1,7 @@
 .venv/
 __pycache__/
 database/
-src/change_database.py
+src/utils/change_database.py
+files/csv_tests/
+files/misc/
+files/reports/
