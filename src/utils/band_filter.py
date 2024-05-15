@@ -220,8 +220,6 @@ def get_spectra_filtered_list(db_path: str, band_distance_check: int, input_df: 
 
     input_df = round_and_filter_pre(input_df)
     
-    #new_input_df = input_df.sort_values(['x', 'y']).drop_duplicates('x', keep='first')
-
     num_cores = cpu_cores
     chunk_size = len(spectral_list) // num_cores
 
