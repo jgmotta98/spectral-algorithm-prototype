@@ -11,9 +11,9 @@ from utils.generate_report import create_graph
 SPECTRAL_DB_PATH = '.\\files\\database\\spectral_database.db'
 BAND_DISTANCE_CHECK = 25 # Entre 10 e 40 -> Com o ideal sendo 25.
 CPU_CORES = cpu_count()
-OUTPUT_PDF = '.\\files\\reports\\report_example_Triadimenol.pdf'
-DF_PATH = '.\\files\\csv_tests\\Triadimenol.csv'
-ANALYSIS_COMPOUND = 'Triadimenol_teste'
+OUTPUT_PDF = '.\\files\\reports\\report_example_Bitertanol.pdf'
+DF_PATH = '.\\files\\csv_tests\\Bitertanol.csv'
+ANALYSIS_COMPOUND = 'Bitertanol_teste'
 PICKLE = '.\\files\\database\\teste.pickle'
 
 

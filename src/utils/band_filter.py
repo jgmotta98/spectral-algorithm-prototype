@@ -1,10 +1,16 @@
+'''
+The airPLS and WhittakerSmooth are a translation in python of the R source code of airPLS version 2.0
+by Yizeng Liang and Zhang Zhimin - https://github.com/zmzhang/airPLS
+Reference:
+Z.-M. Zhang, S. Chen, and Y.-Z. Liang, Baseline correction using adaptive iteratively reweighted penalized least squares. Analyst 135 (5), 1138-1146 (2010).
+'''
+
 import time
 from multiprocessing import Pool, cpu_count
 import sqlite3
 
 import numpy as np
 import pandas as pd
-from scipy.signal import savgol_filter, argrelmin
 from scipy.sparse import csc_matrix, eye, diags
 from scipy.sparse.linalg import spsolve
 
@@ -145,8 +151,6 @@ def round_and_filter_pre(spectral_df: pd.DataFrame) -> pd.DataFrame:
     return filtered_df
 
 
-# ------- Experimental ----------------
-
 def WhittakerSmooth(x: list[float], w: np.ndarray[float], 
                     lambda_: int, differences: int = 1) -> np.ndarray:
     '''
@@ -201,8 +205,6 @@ def airPLS(x: list[float], lambda_: int = 100,
         w[-1]=w[0]
     return z
 
-
-#---------------------------------------
 
 def get_spectra_filtered_list(db_path: str, band_distance_check: int, input_df: list[str, pd.DataFrame], *, cpu_cores: int = cpu_count()) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
     start_time = time.perf_counter()
