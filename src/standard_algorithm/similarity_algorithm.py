@@ -2,11 +2,6 @@ import time
 
 import numpy as np
 import pandas as pd
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.naive_bayes import GaussianNB
-from sklearn.linear_model import LogisticRegression
-from sklearn.linear_model import SGDClassifier
 from collections import OrderedDict
 from scipy.stats import pearsonr
 
@@ -110,7 +105,6 @@ def local_algorithm(spectral_filtered_list: list[pd.DataFrame], spectral_input_l
     similarity_scores_y = {}
 
     input_list_dict = {}
-    start_time = time.perf_counter()
 
     teste_dict = {}
     for component_name, component_df in components_data.items():
@@ -175,7 +169,15 @@ def local_algorithm(spectral_filtered_list: list[pd.DataFrame], spectral_input_l
         components_data_filter[component_name] = new_component_df
         input_list_dict[component_name] = input_df
 
-        correlation_coefficient_x, _ = pearsonr(input_df['x'].tolist(), new_component_df['x'].tolist())
+        input_df_x = input_df['x'].tolist()
+        new_component_df_x = new_component_df['x'].tolist()
+
+        indexes_list = [i for i, num in enumerate(input_df_x) if num == 0] + [i for i, num in enumerate(new_component_df_x) if num == 0]
+
+        input_df_x = [num for i, num in enumerate(input_df_x) if i not in indexes_list]
+        new_component_df_x = [num for i, num in enumerate(new_component_df_x) if i not in indexes_list]
+
+        correlation_coefficient_x, _ = pearsonr(input_df_x, new_component_df_x)
         correlation_coefficient_y, _ = pearsonr(input_df['y'].tolist(), new_component_df['y'].tolist())
         correlation_coefficient_height, _ = pearsonr(input_df['height'].tolist(), new_component_df['height'].tolist())
         teste_dict[component_name] = ((correlation_coefficient_x + correlation_coefficient_y + correlation_coefficient_height)/3)*100
@@ -195,18 +197,15 @@ def local_algorithm(spectral_filtered_list: list[pd.DataFrame], spectral_input_l
         similarity_percentage_y = similarity_y * 100
         similarity_scores_y[component_name] = similarity_percentage_y
 
-    print(f'Execution time: {time.perf_counter() - start_time} seconds.')
-
     teste = OrderedDict(sorted(teste_dict.items(), key=lambda x: x[1], reverse=True))
     teste = dict(list(teste.items())[:5])
-    for component, similarity in teste.items():
-        print(f'{component} According to pearson the avg is: {similarity}!')
+
+    print(f'Authoral Algorithm Results: {list(teste.keys())}')
 
     closest_matches_x = sorted(similarity_scores_x.items(), key=lambda x: x[1], reverse=True)
     closest_matches_height = sorted(similarity_scores_height.items(), key=lambda x: x[1], reverse=True)
     closest_matches_y = sorted(similarity_scores_y.items(), key=lambda x: x[1], reverse=True)
 
-    print('Component real name: ', analysis_compound)
     components = {}
     for (component, similarity_percentage) in closest_matches_x:
         for (component_height, similarity_percentage_height) in closest_matches_height:
@@ -216,171 +215,7 @@ def local_algorithm(spectral_filtered_list: list[pd.DataFrame], spectral_input_l
 
     components = OrderedDict(sorted(components.items(), key=lambda x: x[1], reverse=True))
     components = dict(list(components.items())[:5])
-    for component, similarity in components.items():
-        print(f"{component}: Average Similarity: {similarity:.2f}")
 
     return components_data_filter, input_list_dict, teste
     #return components_data_filter, input_list_dict, components
-
-
-def KNN_algorithm(df: pd.DataFrame, compound: str) -> None:
-    scaler = MinMaxScaler()
-    for col in df.columns:
-        if col != 'Name':  # Exclude the 'Name' column if it's not numerical
-            scaled_column = scaler.fit_transform(df[[col]])
-            df[col] = scaled_column.flatten()
-        else:
-            df[col] = df[col]  # Include non-numerical columns as they are
-
-    test_df = df[df['Name'] == compound]
-    test_df.reset_index(inplace=True, drop=True)
-
-    train_df = df[df['Name'] != compound]
-    train_df.reset_index(inplace=True, drop=True)
-
-    train_df_x = train_df.drop(columns=['Name'])
-    train_df_y = train_df['Name']
-
-    test_df_x = test_df.drop(columns=['Name'])
-
-    knn = KNeighborsClassifier(n_neighbors=3)
-    knn.fit(train_df_x, train_df_y)
-
-    y_pred = knn.predict(test_df_x)
-    probabilities = knn.predict_proba(test_df_x)
-
-    # Get classes and their corresponding probabilities
-    classes = knn.classes_
-    output = {cls: proba for cls, proba in zip(classes, probabilities[0])}
-
-    # Sort output by probabilities in descending order
-    sorted_output = sorted(output.items(), key=lambda x: x[1], reverse=True)
-
-    # Display the output
-    print(y_pred)
-    print("Chances of being a:")
-    for cls, proba in sorted_output:
-        print(f"{cls.capitalize()} - {proba * 100:.5f}%")
-
-
-def naive_bayes_algorithm(df: pd.DataFrame, compound: str) -> None:
-    scaler = MinMaxScaler()
-    for col in df.columns:
-        if col != 'Name':  # Exclude the 'Name' column if it's not numerical
-            scaled_column = scaler.fit_transform(df[[col]])
-            df[col] = scaled_column.flatten()
-        else:
-            df[col] = df[col]  # Include non-numerical columns as they are
-
-    test_df = df[df['Name'] == compound]
-    test_df.reset_index(inplace=True, drop=True)
-
-    train_df = df[df['Name'] != compound]
-    train_df.reset_index(inplace=True, drop=True)
-
-
-    train_df_x = train_df.drop(columns=['Name'])
-    train_df_y = train_df['Name']
-
-    test_df_x = test_df.drop(columns=['Name'])
-
-    nb = GaussianNB()
-    nb.fit(train_df_x, train_df_y)
-
-    y_pred = nb.predict(test_df_x)
-    probabilities = nb.predict_proba(test_df_x)
-
-    # Get classes and their corresponding probabilities
-    classes = nb.classes_
-
-    output = {cls: proba for cls, proba in zip(classes, probabilities[0])}
-
-    # Sort output by probabilities in descending order
-    sorted_output = sorted(output.items(), key=lambda x: x[1], reverse=True)
-
-    # Display the output
-    print(y_pred)
-    print("Chances of being a:")
-    for cls, proba in sorted_output:
-        print(f"{cls.capitalize()} - {proba * 100:.5f}%")
-
-
-def logistic_regression_algorithm(df: pd.DataFrame, compound: str) -> None:
-     # Scale numerical columns
-    scaler = MinMaxScaler()
-    for col in df.columns:
-        if col != 'Name':  # Exclude the 'Name' column if it's not numerical
-            scaled_column = scaler.fit_transform(df[[col]])
-            df[col] = scaled_column.flatten()
-        else:
-            df[col] = df[col]  # Include non-numerical columns as they are
-
-    # Split into train and test sets
-    test_df = df[df['Name'] == compound].reset_index(drop=True)
-    train_df = df[df['Name'] != compound].reset_index(drop=True)
-
-    # Prepare train and test data
-    train_df_x = train_df.drop(columns=['Name'])
-    train_df_y = train_df['Name']
-    test_df_x = test_df.drop(columns=['Name'])
-
-    # Initialize and train Logistic Regression model
-    lr = LogisticRegression(max_iter=1000)
-    lr.fit(train_df_x, train_df_y)
-
-    # Predict probabilities for test data
-    probabilities = lr.predict_proba(test_df_x)
-
-    # Get classes and their corresponding probabilities
-    classes = lr.classes_
-
-    output = {cls: proba for cls, proba in zip(classes, probabilities[0])}
-
-    # Sort output by probabilities in descending order
-    sorted_output = sorted(output.items(), key=lambda x: x[1], reverse=True)
-
-    # Display the output
-    print("Chances of being a:")
-    for cls, proba in sorted_output:
-        print(f"{cls.capitalize()} - {proba * 100:.2f}%")
-
-
-def svg_algorithm(df: pd.DataFrame, compound: str) -> None:
-    # Scale numerical columns
-    scaler = MinMaxScaler()
-    for col in df.columns:
-        if col != 'Name':  # Exclude the 'Name' column if it's not numerical
-            scaled_column = scaler.fit_transform(df[[col]])
-            df[col] = scaled_column.flatten()
-        else:
-            df[col] = df[col]  # Include non-numerical columns as they are
-
-    # Split into train and test sets
-    test_df = df[df['Name'] == compound].reset_index(drop=True)
-    train_df = df[df['Name'] != compound].reset_index(drop=True)
-
-    # Prepare train and test data
-    train_df_x = train_df.drop(columns=['Name'])
-    train_df_y = train_df['Name']
-    test_df_x = test_df.drop(columns=['Name'])
-
-    # Initialize and train SVG (Stochastic Gradient Variance) model
-    svg = SGDClassifier(loss='log_loss', max_iter=1000, tol=1e-3)
-    svg.fit(train_df_x, train_df_y)
-
-    # Predict probabilities for test data
-    probabilities = svg.predict_proba(test_df_x)
-
-    # Get classes and their corresponding probabilities
-    classes = svg.classes_
-
-    output = {cls: proba for cls, proba in zip(classes, probabilities[0])}
-
-    # Sort output by probabilities in descending order
-    sorted_output = sorted(output.items(), key=lambda x: x[1], reverse=True)
-
-    # Display the output
-    print("Chances of being a:")
-    for cls, proba in sorted_output:
-        print(f"{cls.capitalize()} - {proba * 100:.2f}%")
         

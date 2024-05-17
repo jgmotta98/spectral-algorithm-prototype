@@ -135,7 +135,6 @@ def create_compound_line(spectral_df_list: list[pd.DataFrame], range_value: int)
 
 
 def round_and_filter(spectral_df: pd.DataFrame) -> pd.DataFrame:
-    spectral_df['x'] = spectral_df['x'].astype(int)
     sorted_df = spectral_df.sort_values(by=['name', 'height'], ascending=[True, False])
     spectral_df = sorted_df.groupby('x').first().reset_index()
 
@@ -210,18 +209,18 @@ def get_spectra_filtered_list(db_path: str, band_distance_check: int, input_df: 
     start_time = time.perf_counter()
     spectral_list = _get_database_values(db_path)
     
-    spectral_list = [round_and_filter_pre(spectra) for spectra in spectral_list]
+    #spectral_list = [round_and_filter_pre(spectra) for spectra in spectral_list]
 
     input_df[1].insert(0, 'name', input_df[0])
     input_df = input_df[1]
     
     input_df['y'] = 2 - np.log10(input_df['y'])
-    c1=np.array(input_df['y'].tolist())-airPLS(np.array(input_df['y'].tolist())) # adicionar a possibilidade do usuario de alterar a porder!
+    c1=np.array(input_df['y'].tolist())-airPLS(np.array(input_df['y'].tolist()))
     
     c1 = 10**(-c1) * 100
     input_df['y'] = c1.tolist()
 
-    input_df = round_and_filter_pre(input_df)
+    #input_df = round_and_filter_pre(input_df)
     
     num_cores = cpu_cores
     chunk_size = len(spectral_list) // num_cores
@@ -237,14 +236,12 @@ def get_spectra_filtered_list(db_path: str, band_distance_check: int, input_df: 
 
     spectral_filtered_list = [item for sublist in processed_chunks for item in sublist]
 
-    print(f'Execution time: {time.perf_counter() - start_time} seconds.')
-
     spectral_alt_df_filtered_list = [round_and_filter(df) for df in spectral_filtered_list]
 
     spectral_alt_df_filtered_list.append(round_and_filter(spectral_input_list[0]))
 
     spectral_df = create_compound_line(spectral_alt_df_filtered_list, band_distance_check)
 
-    spectral_df.to_pickle(r'D:\Downloads\Material Faculdade\Material TCC\spectral-algorithm-prototype\files\database\teste.pickle')
+    print(f'Execution time: {time.perf_counter() - start_time} seconds.')
 
-    return spectral_filtered_list, spectral_input_list, spectral_list
+    return spectral_filtered_list, spectral_input_list, spectral_list, spectral_df

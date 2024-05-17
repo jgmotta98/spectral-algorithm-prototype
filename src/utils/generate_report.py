@@ -22,6 +22,7 @@ def create_graph(components_data_filter, input_list_dict, spectral_list, spectra
     table_dict: dict[str, list[tuple[str, str, str, str, str]]] = {}
     
     for k, v in component_dict.items():
+
         table_list: list[tuple[str, str, str, str, str]] = []
         fig, ax = plt.subplots()
         
@@ -60,7 +61,7 @@ def create_graph(components_data_filter, input_list_dict, spectral_list, spectra
         plt.xlim((4000, 400))
         plt.ylim((0, 100))
         plt.xlabel('Wavelength (cm⁻¹)')
-        plt.ylabel('Intensity')
+        plt.ylabel('Transmittance (%)')
         figure = plt.gcf()
         figure.set_size_inches(9.5*2.2, 5.5*2.2)
 
@@ -98,9 +99,9 @@ def footer(pdf, tmp_file):
 
 def create_table(pdf: FPDF, table_data: list[tuple[str, str, str, str, str]], tmp_file: str, analyzed_compound: str) -> None:
     table_header = [('Id', f'{os.path.basename(tmp_file).split(".")[0].capitalize()}\nWavelength (cm-¹)', 
-                     f'{os.path.basename(tmp_file).split(".")[0].capitalize()}\nIntensity', 
+                     f'{os.path.basename(tmp_file).split(".")[0].capitalize()}\nTransmittance (%)', 
                      f'{analyzed_compound}\nWavelength (cm-¹)', 
-                     f'{analyzed_compound}\nIntensity')]
+                     f'{analyzed_compound}\nTransmittance (%)')]
     table_data = table_header + table_data
 
     pdf.add_page()
