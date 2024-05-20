@@ -4,12 +4,14 @@ from matplotlib.figure import Figure
 import os
 from fpdf import FPDF
 import datetime
+from concurrent.futures import ProcessPoolExecutor
+import time
 
 
 TEMP_PATH = './files/temp'
 
 
-def create_graph(components_data_filter, input_list_dict, spectral_list, spectra_input_list, components, compound, output, band_check):
+def create_graph(components_data_filter, input_list_dict, spectral_list, spectra_input_list, components, compound, output, band_check, cpu_cores):
     dict_teste = {v.iloc[0, 0]: v.drop('name', axis=1) for v in spectral_list}
     dict_input = {compound: spectra_input_list.drop('name', axis=1)}
 
@@ -17,64 +19,76 @@ def create_graph(components_data_filter, input_list_dict, spectral_list, spectra
     percentages = list(sorted_data.values())
     components = list(sorted_data.keys())
 
-    component_dict = {comp: components_data_filter[comp].loc[:, ('x', 'y')] for comp in (components)}
+    component_dict = {comp: components_data_filter[comp].loc[:, ('x', 'y')] for comp in components}
 
-    table_dict: dict[str, list[tuple[str, str, str, str, str]]] = {}
-    
-    for k, v in component_dict.items():
+    table_dict = {}
 
-        table_list: list[tuple[str, str, str, str, str]] = []
-        fig, ax = plt.subplots()
+    with ProcessPoolExecutor(max_workers=cpu_cores) as executor:
+        futures = {executor.submit(create_graph_and_save, k, v, input_list_dict[k], dict_teste[k], dict_input[compound], compound): k for k, v in component_dict.items()}
         
-        input_list = [input_list_dict[k]['x'].tolist(), input_list_dict[k]['y'].tolist()]
-        database_list = [v['x'].tolist(), v['y'].tolist()]
-
-        input_zero_indexes = [i for i, value in enumerate(input_list[0]) if value == 0]
-        database_zero_indexes = [i for i, value in enumerate(database_list[0]) if value == 0]
-
-        merged_zero_indexes = list(set(input_zero_indexes + database_zero_indexes))
-
-        input_list = [[value for idx, value in enumerate(sublist) if idx not in merged_zero_indexes] for sublist in input_list]
-        database_list = [[value for idx, value in enumerate(sublist) if idx not in merged_zero_indexes] for sublist in database_list]
-
-        number_range = len(database_list[0])
-
-        ax.scatter(database_list[0], database_list[1], label=f'{k.capitalize()} Points', zorder=2, color='blue')
-        ax.scatter(input_list[0], input_list[1], label=f'{compound.capitalize()} Points', zorder=2, color='orange')
-
-        for i in range(number_range, 0, -1):
-            table_list.append((str(i), f'{database_list[0][number_range - i]:.2f}', f'{database_list[1][number_range - i]:.2f}', 
-                             f'{input_list[0][number_range - i]:.2f}', f'{input_list[1][number_range - i]:.2f}'))
-            
-            text = ax.annotate(i, (database_list[0][number_range - i], database_list[1][number_range - i]), zorder=4, color='blue', fontsize=10, ha='left', va='top')
-            text.set_path_effects([withStroke(linewidth=3, foreground='white')])
-
-            text = ax.annotate(i, (input_list[0][number_range - i], input_list[1][number_range - i]), zorder=4, color='orange', fontsize=10, ha='left', va='bottom')
-            text.set_path_effects([withStroke(linewidth=3, foreground='white')])
-
-        for i in range(len(database_list[0])):
-            ax.plot([database_list[0][i], input_list[0][i]], [database_list[1][i], input_list[1][i]], linestyle='--', color='purple', alpha=0.5, zorder=3)
-
-        ax.plot(dict_input[compound]['x'], dict_input[compound]['y'], label=f'{compound.capitalize()} Spectra', color='black', zorder=1)
-        ax.plot(dict_teste[k]['x'], dict_teste[k]['y'], color='red', label=f'{k.capitalize()} Spectra', zorder=1, alpha =0.5)
-        ax.legend()
-        plt.xlim((4000, 400))
-        plt.ylim((0, 100))
-        plt.xlabel('Wavelength (cm⁻¹)')
-        plt.ylabel('Transmittance (%)')
-        figure = plt.gcf()
-        figure.set_size_inches(9.5*2.2, 5.5*2.2)
-
-        create_temp_png(os.path.join(TEMP_PATH, f"{k}.png"), fig)
-        table_list = sorted(table_list, key=lambda x: float(x[0]))
-        table_dict[k] = table_list
+        for future in futures:
+            k = futures[future]
+            try:
+                table_list = future.result()
+                table_dict[k] = table_list
+            except Exception as e:
+                print(f"An error occurred while processing {k}: {e}")
 
     create_pdf_page(TEMP_PATH, output, components, table_dict, compound, band_check, percentages)
 
 
+def create_graph_and_save(component, data, input_list, dict_test, dict_input, compound):
+    table_list = []
+    fig, ax = plt.subplots()
+    
+    input_data = [input_list['x'].tolist(), input_list['y'].tolist()]
+    database_data = [data['x'].tolist(), data['y'].tolist()]
+
+    input_zero_indexes = [i for i, value in enumerate(input_data[0]) if value == 0]
+    database_zero_indexes = [i for i, value in enumerate(database_data[0]) if value == 0]
+
+    merged_zero_indexes = list(set(input_zero_indexes + database_zero_indexes))
+
+    input_data = [[value for idx, value in enumerate(sublist) if idx not in merged_zero_indexes] for sublist in input_data]
+    database_data = [[value for idx, value in enumerate(sublist) if idx not in merged_zero_indexes] for sublist in database_data]
+
+    number_range = len(database_data[0])
+
+    ax.scatter(database_data[0], database_data[1], label=f'{component.capitalize()} Points', zorder=2, color='blue')
+    ax.scatter(input_data[0], input_data[1], label=f'{compound.capitalize()} Points', zorder=2, color='orange')
+
+    for i in range(number_range, 0, -1):
+        table_list.append((str(i), f'{database_data[0][number_range - i]:.2f}', f'{database_data[1][number_range - i]:.2f}', 
+                         f'{input_data[0][number_range - i]:.2f}', f'{input_data[1][number_range - i]:.2f}'))
+        
+        text = ax.annotate(i, (database_data[0][number_range - i], database_data[1][number_range - i]), zorder=4, color='blue', fontsize=10, ha='left', va='top')
+        text.set_path_effects([withStroke(linewidth=3, foreground='white')])
+
+        text = ax.annotate(i, (input_data[0][number_range - i], input_data[1][number_range - i]), zorder=4, color='orange', fontsize=10, ha='left', va='bottom')
+        text.set_path_effects([withStroke(linewidth=3, foreground='white')])
+
+    for i in range(len(database_data[0])):
+        ax.plot([database_data[0][i], input_data[0][i]], [database_data[1][i], input_data[1][i]], linestyle='--', color='purple', alpha=0.5, zorder=3)
+
+    ax.plot(dict_input['x'], dict_input['y'], label=f'{compound.capitalize()} Spectra', color='black', zorder=1)
+    ax.plot(dict_test['x'], dict_test['y'], color='red', label=f'{component.capitalize()} Spectra', zorder=1, alpha=0.5)
+    ax.legend()
+    plt.xlim((4000, 400))
+    plt.ylim((0, 100))
+    plt.xlabel('Wavelength (cm⁻¹)')
+    plt.ylabel('Transmittance (%)')
+    figure = plt.gcf()
+    figure.set_size_inches(9.5*2.2, 5.5*2.2)
+
+    output_path = os.path.join(TEMP_PATH, f"{component}.png")
+    create_temp_png(output_path, fig)
+
+    table_list = sorted(table_list, key=lambda x: float(x[0]))
+    return table_list
+
+
 def create_temp_png(output_path: str, fig: Figure) -> None:
-    tmp_file = os.path.join(output_path)
-    fig.savefig(tmp_file, bbox_inches='tight', dpi=300)
+    fig.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close(fig)
 
 
@@ -87,7 +101,7 @@ def footer(pdf, tmp_file):
     pdf.set_font('Times', '', 14)
     page_width = pdf.w - 2 * pdf.l_margin
 
-    img_path = r'D:\Downloads\Material Faculdade\Material TCC\spectral-algorithm-prototype\files\imgs\spectral-nexus-icon-thicker-bw.png'
+    img_path = '.\\files\\imgs\\spectral-nexus-icon-thicker-bw.png'
     pdf.image(img_path, x=pdf.l_margin, y=pdf.get_y(), w=40, h=6)
 
     pdf.cell(page_width / 3, 10, '', 0, 0, 'L')
@@ -167,7 +181,7 @@ def create_pdf_page(imgs_path: str, output_pdf: str,
     
     pdf = FPDF(orientation="landscape")
 
-    background_image_path = r'D:\Downloads\Material Faculdade\Material TCC\spectral-algorithm-prototype\files\imgs\background-1-test.png'
+    background_image_path = '.\\files\\imgs\\background-1-test.png'
     pdf.set_page_background(background_image_path)
 
     create_details_page(pdf, analyzed_comp_name, band_check, compound_list, percentages)
