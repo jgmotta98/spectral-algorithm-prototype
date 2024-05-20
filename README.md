@@ -10,6 +10,8 @@
 
 Use the database returned from the [Spectra Scraper](https://github.com/jgmotta98/spectra-scraper) to feed the algorithm. Use a `*.csv` file to input the FT-IR spectral data.
 
+Modify all paths accordingly on [config.py](/src/config.py). Run [main.py](/src/main.py).
+
 ## Credits
 
 - Baseline correction (Whittaker smoothing & airPLS) from [Z.-M. Zhang, S. Chen, and Y.-Z. Liang, 2010](https://doi.org/10.1039/B922045C).
