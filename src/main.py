@@ -73,7 +73,7 @@ def convert_to_dict(data_list: list[dict[str, pd.DataFrame]]) -> dict[str, pd.Da
     return result_dict
 
 
-def paralelization_process(args) -> dict[str, float] | dict[str, pd.DataFrame]:
+def parallelization_process(args) -> dict[str, float] | dict[str, pd.DataFrame]:
     name, spectral_filtered_input, spectral_db_path, band_distance_check = args
     # Fetch spectral data
     spectral_data = fetch_spectral_data(spectral_db_path, name)
@@ -95,9 +95,9 @@ def main() -> None:
     spectral_input = input_baseline_correction([UserInput.ANALYSIS_COMPOUND_NAME, input_df])
     spectral_filtered_input = get_spectra_filtered_list(spectral_input, UserInput.BAND_DISTANCE_CHECK)
 
-    if UserInput.USE_PARALELIZATION:
+    if UserInput.USE_PARALLELIZATION:
         with mp.Pool(processes=UserInput.CPU_CORES) as pool:
-            result_list = pool.map(paralelization_process, [(name, spectral_filtered_input, UserInput.SPECTRAL_DB_PATH, 
+            result_list = pool.map(parallelization_process, [(name, spectral_filtered_input, UserInput.SPECTRAL_DB_PATH, 
                                                              UserInput.BAND_DISTANCE_CHECK) for name in unique_names])
     else:
         result_list: list[dict[str, float]] = []
@@ -130,6 +130,7 @@ def main() -> None:
                  UserInput.ANALYSIS_COMPOUND_NAME, UserInput.OUTPUT_PDF, UserInput.BAND_DISTANCE_CHECK, UserInput.CPU_CORES)
     
     print(f'Report Generation: {time.perf_counter() - start_time} seconds.')
+
 
 if __name__ == "__main__":
     main()

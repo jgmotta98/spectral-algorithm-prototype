@@ -1,5 +1,6 @@
 import pandas as pd
 from sklearn.linear_model import SGDClassifier
+import numpy as np
 
 
 def svg_algorithm(df_tuple: tuple[pd.DataFrame, pd.DataFrame], *, verbose: bool = False) -> None:
