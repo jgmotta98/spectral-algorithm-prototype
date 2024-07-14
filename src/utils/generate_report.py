@@ -75,10 +75,12 @@ def create_graph_and_save(component, data, input_list, dict_test, dict_input, co
     ax.legend()
     plt.xlim((4000, 400))
     plt.ylim((0, 100))
-    plt.xlabel('Wavelength (cm⁻¹)')
-    plt.ylabel('Transmittance (%)')
+    plt.xlabel('Número de onda (cm⁻¹)')
+    plt.ylabel('Transmitância (%)')
+    plt.grid(True, linestyle='--', color='gray', alpha=0.5)
     figure = plt.gcf()
     figure.set_size_inches(9.5*2.2, 5.5*2.2)
+    #figure.set_size_inches(5*2.2, 3*2.2) para o tcc.
 
     output_path = os.path.join(TEMP_PATH, f"{component}.png")
     create_temp_png(output_path, fig)
@@ -112,10 +114,10 @@ def footer(pdf, tmp_file):
 
 
 def create_table(pdf: FPDF, table_data: list[tuple[str, str, str, str, str]], tmp_file: str, analyzed_compound: str) -> None:
-    table_header = [('Id', f'{os.path.basename(tmp_file).split(".")[0].capitalize()}\nWavelength (cm-¹)', 
-                     f'{os.path.basename(tmp_file).split(".")[0].capitalize()}\nTransmittance (%)', 
-                     f'{analyzed_compound}\nWavelength (cm-¹)', 
-                     f'{analyzed_compound}\nTransmittance (%)')]
+    table_header = [('Id', f'{os.path.basename(tmp_file).split(".")[0].capitalize()}\nNumero de onda (cm-¹)', 
+                     f'{os.path.basename(tmp_file).split(".")[0].capitalize()}\nTransmitância (%)', 
+                     f'{analyzed_compound}\nNumero de onda (cm-¹)', 
+                     f'{analyzed_compound}\nTransmitância (%)')]
     table_data = table_header + table_data
 
     pdf.add_page()
@@ -147,7 +149,7 @@ def create_similarity_table(pdf, table_data):
 def create_details_page(pdf, analyzed_comp, band_check, compound_list, percentages):
     pdf.add_page()
     pdf.set_font('Times', 'B', 24)
-    pdf.write(2, 'Information Details')
+    pdf.write(2, 'Informações')
     pdf.ln(10)
     pdf.set_font('Times', 'B', 20)
     now = datetime.datetime.now()
@@ -155,14 +157,14 @@ def create_details_page(pdf, analyzed_comp, band_check, compound_list, percentag
     pdf.ln(40)
 
     pdf.set_font('Times', '', 18)
-    pdf.write(2, f'Analyzed Compound Name: {analyzed_comp}')
+    pdf.write(2, f'Composto de entrada analisado: {analyzed_comp}')
     pdf.ln(10)
 
-    pdf.write(2, f'Analyzed Range: {band_check} cm-¹')
+    pdf.write(2, f'Faixa analisada: {band_check} cm-¹')
     pdf.ln(25)
 
-    table_list = [(f'{comp_idx + 1}', comp, f'{perc/100:.2f}') for comp_idx, (comp, perc) in enumerate(zip(compound_list, percentages))]
-    table_list = [('Id', 'Database Compound', 'Similarity Factor')] + table_list
+    table_list = [(f'{comp_idx + 1}', comp, f'{perc:.2f}') for comp_idx, (comp, perc) in enumerate(zip(compound_list, percentages))]
+    table_list = [('Id', 'Componente do banco de dados', 'Fator de similaridade (%)')] + table_list
 
     create_similarity_table(pdf, table_list)
 

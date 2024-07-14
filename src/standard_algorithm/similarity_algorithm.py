@@ -110,7 +110,7 @@ def local_algorithm(spectral_filtered_database: pd.DataFrame,
 
     baseline_value = spectral_filtered_input.loc[0, 'baseline']
     upper_portion = .5 # acima de 50% do tamanho da baseline é considerado banda grande.
-    lower_portion = .3 # abaixo de 15% do tamanho da baseline é considerado banda pequena.
+    lower_portion = .3 # abaixo de 30% do tamanho da baseline é considerado banda pequena.
 
     big_band_weight = 2
     medium_band_weight = 1

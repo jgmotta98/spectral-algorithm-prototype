@@ -1,10 +1,3 @@
-'''
-The airPLS and WhittakerSmooth are a translation in python of the R source code of airPLS version 2.0
-by Yizeng Liang and Zhang Zhimin - https://github.com/zmzhang/airPLS
-Reference:
-Z.-M. Zhang, S. Chen, and Y.-Z. Liang, Baseline correction using adaptive iteratively reweighted penalized least squares. Analyst 135 (5), 1138-1146 (2010).
-'''
-
 import numpy as np
 import pandas as pd
 

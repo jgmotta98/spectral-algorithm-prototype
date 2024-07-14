@@ -7,6 +7,8 @@ class Pipeline:
         self.df = df
         self.input_comp_name = input_comp_name
 
+        self.min_max_scaler()
+
     def min_max_scaler(self):
         scaler = MinMaxScaler()
         for col in self.df.columns:
